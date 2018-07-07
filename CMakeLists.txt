@@ -58,7 +58,7 @@ list(REMOVE_ITEM TEENSY_SOURCES ${COREPATH}main.cpp)
 
 # Teensy 3.0 and 3.1 differentiation
 #
-
+message("TEENSY_VERSION ${TEENSY_VERSION}")
 if (TEENSY_VERSION EQUAL 30)
     set(CPU_DEFINE __MK20DX128__)
     set(LINKER_FILE ${COREPATH}mk20dx128.ld)
@@ -76,12 +76,13 @@ set(TEENSY_DEFINITIONS USB_SERIAL
 # Macros to wrap add_[executable|library] for seamless Teensy integration
 #
 function(teensy_add_executable TARGET)
+    message("Corepath " ${COREPATH})
     set(ELFTARGET ${TARGET}.elf)
-
+    message("mm ${ELFTARGET} ${ARGN} ${TEENSY_SOURCES}")
     add_executable(${ELFTARGET} ${ARGN} ${TEENSY_SOURCES})
 
     set_target_properties(${ELFTARGET} PROPERTIES COMPILE_FLAGS "-Wall -g -Os -mcpu=${CPU} -mthumb -nostdlib -MMD -felide-constructors -fno-exceptions -fno-rtti -std=gnu++0x")
-    set_target_properties(${ELFTARGET} PROPERTIES COMPILE_DEFINITIONS "${TEENSY_DEFINITIONS}")
+    set_target_properties(${ELFTARGET} PROPERTIES COMPILE_DEFINITIONS "${TEENSY_DEFINITIONS} ${INCLUDE_DIRECTORIES} -D __arm__ -DTEENSYDUINO -I/Users/xxx/Downloads/SerialFlash-master")
     set_target_properties(${ELFTARGET} PROPERTIES INCLUDE_DIRECTORIES "${COREPATH}")
     set_target_properties(${ELFTARGET} PROPERTIES LINK_FLAGS "-Os -Wl,--gc-sections,--defsym=__rtc_localtime=0 --specs=nano.specs -mcpu=${CPU} -mthumb -T${LINKER_FILE}")
 
@@ -101,12 +102,15 @@ macro(import_arduino_library LIB_NAME)
         message(FATAL_ERROR "Could not find the Arduino library directory")
     endif(NOT EXISTS ${ARDUINO_LIB_ROOT})
     set(LIB_DIR "${ARDUINO_LIB_ROOT}/${LIB_NAME}")
+    #message(LIB_DIR ${LIB_DIR})
     if(NOT EXISTS "${LIB_DIR}")
         message(FATAL_ERROR "Could not find the directory for library '${LIB_NAME}'")
     endif(NOT EXISTS "${LIB_DIR}")
 
     # Add it to the include path.
     include_directories("${LIB_DIR}")
+    set(INCLUDE_DIRECTORIES "${INCLUDE_DIRECTORIES}-I${LIB_DIR} ")
+    message("include_directories " ${LIB_DIR} "  - " ${INCLUDE_DIRECTORIES})
 
     # Mark source files to be built along with the sketch code.
     file(GLOB SOURCES_CPP ABSOLUTE "${LIB_DIR}" "${LIB_DIR}/*.cpp")
@@ -116,9 +120,15 @@ macro(import_arduino_library LIB_NAME)
     file(GLOB SOURCES_C ABSOLUTE "${LIB_DIR}" "${LIB_DIR}/*.c")
     foreach(SOURCE_C ${SOURCES_C})
         set(TEENSY_LIB_SOURCES ${TEENSY_LIB_SOURCES} ${SOURCE_C})
+        message("lib src ${TEENSY_LIB_SOURCES}")
     endforeach(SOURCE_C ${SOURCES_C})
 endmacro(import_arduino_library)
 
-set(ARDUINO_LIB_ROOT "/Applications/Arduino.app/Contents/Java/hardware/teensy/avr/libraries/")
+set(ARDUINO_LIB_ROOT "/Applications/Arduino.app/Contents/Java/hardware/teensy/avr/libraries")
 import_arduino_library(Audio)
+import_arduino_library(Wire)
+import_arduino_library(SPI)
+import_arduino_library(SD)
+#import_arduino_library(SerialFlash)
+
 teensy_add_executable(teensy-template main.cpp)
